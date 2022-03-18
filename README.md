@@ -2,53 +2,51 @@
 
 Microsoft Azure records platform-level events to the [Activity Log](https://docs.microsoft.com/en-us/azure/azure-monitor/essentials/activity-log). The Activity Log will contain events related to the creation, modification, and deletion of Azure resources. Examples include the creation of a role assignment or modification of a Virtual Machine's network interface. It is critical for organizations to preserve and analyze these logs to maintain the security of the Azure platform.
 
-Microsoft public documentation focuses on Activity Logs at the subcription scope. However, there are also Activity Logs at the [Management Group](https://journeyofthegeek.com/2019/10/17/capturing-azure-management-group-activity-logs-using-azure-automation-part-1/) and [Tenant](https://docs.microsoft.com/en-us/rest/api/monitor/tenant-activity-logs) scope. Manag
+Microsoft public documentation focuses on Activity Logs at the subcription scope. However, there are also Activity Logs at the [Management Group](https://journeyofthegeek.com/2019/10/17/capturing-azure-management-group-activity-logs-using-azure-automation-part-1/) and [Tenant](https://docs.microsoft.com/en-us/rest/api/monitor/tenant-activity-logs) scope. Management Group Activity Logs include important events such as modification of Azure Policy or Azure RBAC. Tenant Activity Logs include modifications of Azure RBAC of the [root scope (/)](https://docs.microsoft.com/en-us/azure/role-based-access-control/elevate-access-global-admin).
 
-
-This PowerShell script is designed to run an an [Azure Automation Runbook](https://docs.microsoft.com/en-us/azure/automation/automation-runbook-types#powershell-runbooks).  The script collects the Activity Logs associated with each [Management Group](https://docs.microsoft.com/en-us/azure/governance/management-groups/overview) within an Azure Active Directory tenant and writes the logs to blob storage in an Azure Storage Account.  It additionally can deliver the logs to an Azure Event Hub and Azure Monitor through the [Azure Monitor HTTP Data Collector API](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/data-collector-api).  The log created in Azure Monitor is named mgmtGroupActivityLogs.
-
-You can find a detailed write up of the process I used to put this together on my [blog](https://journeyofthegeek.com/2019/10/17/capturing-azure-management-group-activity-logs-using-azure-automation-part-1/).  The write up includes API endpoints you'll need to use that aren't well documented in official Microsoft documentation.
+Azure Monitor maintains 90 days worth of these logs by default. Customers must export the logs to retain longer than 90 days.Activity Logs at the subscription scope can be exported using [Azure Diagnostic Settings](https://docs.microsoft.com/en-us/azure/azure-monitor/essentials/diagnostic-settings?tabs=CMD) using the Portal, CLI, or REST API. At this time, Management Group Activity logs can be exported using diagnostic settings only via the [REST API](https://docs.microsoft.com/en-us/rest/api/monitor/management-group-diagnostic-settings/create-or-update). Tenant Activity Logs do not support diagnostic settings at this time and must be [manually pulled from the REST API](https://docs.microsoft.com/en-us/rest/api/monitor/tenant-activity-logs).
 
 ## What problem does this solve?
-In Microsoft Azure, write, update, and delete operations on the cloud control plane are logged to the [Azure Activity Log](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/activity-logs-overview).  Each Azure Subscription and Azure Management Group have an Activity Log which are retained on the platform for 90 days.  To retain the logs for more than 90 days the logs need to be retrieved and stored in another medium.  Activity Logs for subscriptions have been integrated with [Azure Storage, Azure Log Analytics, and Azure Event Hubs](https://docs.microsoft.com/en-us/azure/azure-monitor/platform/activity-log-export).  The logs for Management Groups are only accessible through the [Azure Portal and the Azure REST API](https://feedback.azure.com/forums/911473-azure-management-groups/suggestions/34705756-activity-log-for-management-group), and as of October 2019, have not yet been integrated with other storage mediums. 
-
-Management Groups were introduced to Microsoft Azure as a means of applying governance and access controls across multiple Azure Subscriptions.  This is accomplished through the use of [Azure Policy](https://docs.microsoft.com/en-us/azure/governance/policy/overview) and [Azure RBAC](https://docs.microsoft.com/en-us/azure/role-based-access-control/overview).  This means that activites performed on management groups need to be monitored, analyzed, and alerted upon.
-
-This Runbook can be used to collect the Activity Logs from all Management Groups within an Azure AD Tenant in order to retain, analyze, and alert on the logs.  It will write the logs to blob storage in an Azure Storage Account and optionally to a Log Analytics Workspace and Azure Event Hub.  
+This Python solution demonstrates how a service principal could be used to export Tenant Activity Logs. The logs are exported into a single JSON file which can be imported into a SIEM solution or stored in long term storage such as Azure Blob Storage.
 
 ## Requirements
-
 ### Azure Identity and Access Management Requirements
-The following Azure RBAC Roles must be granted to the Azure Automation Account under the context which the Runbook runs.
+* The service principal used by the solution must have the [Monitoring Reader RBAC role](https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#monitoring-reader) at the root (/) scope.
+* To grant the role assignment to the service principal at the root (/) scope, the user must have the [User Access Administrator role at the root (/) scope](https://docs.microsoft.com/en-us/azure/role-based-access-control/elevate-access-global-admin).
 
-* [Reader](https://docs.microsoft.com/en-us/azure/role-based-access-control/built-in-roles#reader) on Tenant Root Group Management Group
-* [Storage Blob Contributor](https://docs.microsoft.com/en-us/azure/storage/common/storage-auth-aad-rbac-portal) on the Azure Storage Account where you want to write the logs
-
-### Azure Resource Requirements
-* Azure Storage Account with a container already created for the blobs
-* (Optional) Azure Log Analytics Workspace
-* (Optional) Azure Event Hub
-
-### .NET Libraries
-The following .NET libraries need to be [imported](https://docs.microsoft.com/en-us/azure/automation/shared-resources/modules) into the Azure Automation Account.  You can use the command line version of [Nuget](https://www.nuget.org/downloads).  Each library needs to be packed into a separate ZIP file for important.  Ensure you capture both the DLL and XML/PDB (if present) files for each package.
-
-* [Microsoft.IdentityModel.Clients.ActiveDirectory 5.2.3](https://www.nuget.org/packages/Microsoft.IdentityModel.Clients.ActiveDirectory/)
-* [Microsoft.Azure.EventHubs 4.1.0 - .NET Standard 2.0](https://www.nuget.org/packages/Microsoft.Azure.EventHubs/)
-* [Microsoft.Azure.Amqp 2.4.3](https://www.nuget.org/packages/Microsoft.Azure.Amqp/2.4.3)
-* [System.Diagnostics.DiagnosticSource 4.6.0 - .NET 4.5](https://www.nuget.org/packages/System.Diagnostics.DiagnosticSource/)
 
 ## Setup
+1. Create a new service principal and assign the Monitoring Reader RBAC role at the root (/).
 
-1. Create a new [Azure Automation Account](https://docs.microsoft.com/en-us/azure/automation/automation-quickstart-create-account)
-2. Install and run the [Update-AutomationAzureModulesForAccount](https://github.com/microsoft/AzureAutomation-Account-Modules-Update/blob/master/Update-AutomationAzureModulesForAccount.ps1) PowerShell runbook.
-3. [Install](https://docs.microsoft.com/en-us/azure/automation/shared-resources/modules) the .NET modules referenced above into the Azure Automation Account.
-4. Create the required Azure resources above and optional resources if choosing to write to Azure Monitor or Azure Event Hub.
-5. Grant the RBAC roles referenced in the requirements above to the service principal used by the Azure Automation Account.
-6. Create three [variables](https://docs.microsoft.com/en-us/azure/automation/shared-resources/variables) in the Azure Automation Account.  The variables should be named and used as follows:
-  * eventHubConnString - Connection string for the Event Hub you want the logs to stream to.
-  * logAnalyticsWorkspaceId - Log Analytics Workspace Id you want the logs to be sent to.
-  * logAnalyticsWorkspaceKey- Log Analytics Workspace Key you want the logs to be sent to.
-7. Install the Collect-ManagementGroupActivityLogs
-8. Run on demand, [schedule](https://docs.microsoft.com/en-us/azure/automation/shared-resources/schedules), or whatever floats your boat!
+```
+mysp=$(az ad sp create-for-rbac --name test-sp1 \
+--role "Monitoring Reader" \
+--scopes "/")
+```
+2. Create environment variables for the service principal client id, client secret, and tenant name.
+
+```
+export CLIENT_ID=$(echo $mysp | jq -r .appId)
+export CLIENT_SECRET=$(echo $mysp | jq -r .password)
+export TENANT_NAME="mytenant.com"
+```
+
+3. Create an environment variable for how many days back you want to query the logs for. The script accepts up to a maximum value of 89. A value of 89 will query the past 90 days.
+
+```
+export DAYS=7
+```
+
+4. Install the appropriate supporting libraries listed in the requirements.txt file. You can optionally create a [virtual environment](https://uoa-eresearch.github.io/eresearch-cookbook/recipe/2014/11/26/python-virtual-env/) if you want to keep the libraries isolated to the script. Remember to switch to this virtual environment before running the solution.
+
+```
+pip install -r requirements.txt
+```
+
+5. Run the script and the output file will be produced in working directory.
+
+```
+python3 app.py
+```
 
 
