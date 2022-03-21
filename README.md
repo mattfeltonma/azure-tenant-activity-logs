@@ -1,5 +1,7 @@
 # Collect Tenant Activity Logs
 
+I've opend up a [feedback item](https://feedback.azure.com/d365community/idea/5e27b864-b1a8-ec11-a81c-6045bd7d1bee) for adding documentation and integration with diagnostic settings. Feel free to use that request as a means to drive Microsoft to better document these logs and provide a simple means to export them.
+
 Microsoft Azure records platform-level events to the [Activity Log](https://docs.microsoft.com/en-us/azure/azure-monitor/essentials/activity-log). The Activity Log will contain events related to the creation, modification, and deletion of Azure resources. Examples include the creation of a role assignment or modification of a Virtual Machine's network interface. It is critical for organizations to preserve and analyze these logs to maintain the security of the Azure platform.
 
 Microsoft public documentation focuses on Activity Logs at the subcription scope. However, there are also Activity Logs at the [Management Group](https://journeyofthegeek.com/2019/10/17/capturing-azure-management-group-activity-logs-using-azure-automation-part-1/) and [Tenant](https://docs.microsoft.com/en-us/rest/api/monitor/tenant-activity-logs) scope. Management Group Activity Logs include important events such as modification of Azure Policy or Azure RBAC. Tenant Activity Logs include modifications of Azure RBAC of the [root scope (/)](https://docs.microsoft.com/en-us/azure/role-based-access-control/elevate-access-global-admin).
