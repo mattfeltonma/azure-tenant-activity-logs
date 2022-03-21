@@ -1,6 +1,6 @@
 # Collect Tenant Activity Logs
 
-**I've opend up a [feedback item](https://feedback.azure.com/d365community/idea/5e27b864-b1a8-ec11-a81c-6045bd7d1bee) for adding documentation and integration with diagnostic settings. Feel free to use that request as a means to drive Microsoft to better document these logs and provide a simple means to export them.**
+_**I've opened up a [feedback item](https://feedback.azure.com/d365community/idea/5e27b864-b1a8-ec11-a81c-6045bd7d1bee) for adding documentation and integration with diagnostic settings. Feel free to use that request as a means to drive Microsoft to better document these logs and provide a simple means to export them.**_
 
 Microsoft Azure records platform-level events to the [Activity Log](https://docs.microsoft.com/en-us/azure/azure-monitor/essentials/activity-log). The Activity Log will contain events related to the creation, modification, and deletion of Azure resources. Examples include the creation of a role assignment or modification of a Virtual Machine's network interface. It is critical for organizations to preserve and analyze these logs to maintain the security of the Azure platform.
 
