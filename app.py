@@ -122,7 +122,7 @@ def main():
     # If paged results are returned, retreive them and write to a file
     while 'nextLink' in response:
         logging.info(
-            f"Paged results returned. Retrieveing from {response['nextLink']}")
+            f"Paged results returned. Retrieving from {response['nextLink']}")
         response = rest_api_request(
             url=response['nextLink'],
             token=token,
@@ -134,7 +134,7 @@ def main():
                 for log_entry in response['value']:
                     log_file.write(json.dumps(log_entry) + ',')
         except Exception:
-            logging.error('Unable to append to log file. Error: ', exc_info=True)
+            logging.error('Unable to append to output file. Error: ', exc_info=True)
 
     # Remove the trailing comma from the file
     try:
